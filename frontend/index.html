@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amazon Sponsored Product Rank Checker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/17.0.2/umd/react.development.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/17.0.2/umd/react-dom.development.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/6.26.0/babel.min.js"></script>
+</head>
+<body class="bg-gray-100">
+    <div id="root"></div>
+    <script type="text/babel">
+        function App() {
+            const [view, setView] = React.useState('login');
+            const [email, setEmail] = React.useState('');
+            const [password, setPassword] = React.useState('');
+            const [keywords, setKeywords] = React.useState('');
+            const [asins, setAsins] = React.useState('');
+            const [results, setResults] = React.useState(null);
+            const [quota, setQuota] = React.useState(null);
+            const [error, setError] = React.useState(null);
+
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                setError(null);
+                try {
+                    const response = await fetch('/login', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({email, password})
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        setView('dashboard');
+                        fetchQuota();
+                    } else {
+                        setError(data.message || 'Login failed');
+                    }
+                } catch (error) {
+                    setError('Network error. Please try again.');
+                    console.error('Login error:', error);
+                }
+            };
+
+            const handleSignup = async (e) => {
+                e.preventDefault();
+                setError(null);
+                try {
+                    const response = await fetch('/signup', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({email, password})
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        setView('login');
+                        alert('Signup successful, please login');
+                    } else {
+                        setError(data.message || 'Signup failed');
+                    }
+                } catch (error) {
+                    setError('Network error. Please try again.');
+                    console.error('Signup error:', error);
+                }
+            };
+
+            const fetchQuota = async () => {
+                try {
+                    const response = await fetch('/quota');
+                    const data = await response.json();
+                    setQuota(data);
+                } catch (error) {
+                    setError('Could not fetch quota');
+                    console.error('Quota fetch error:', error);
+                }
+            };
+
+            const processData = async () => {
+                setError(null);
+                const keywordList = keywords.split('\n').filter(k => k.trim());
+                const asinList = asins.split('\n').filter(a => a.trim());
+
+                if (keywordList.length !== asinList.length) {
+                    setError('Keywords and ASINs must have the same number of entries');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/process', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({keywords: keywordList, asins: asinList})
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        setResults(data);
+                        fetchQuota();
+                    } else {
+                        setError(data.message || 'Processing failed');
+                    }
+                } catch (error) {
+                    setError('Network error. Could not process data.');
+                    console.error('Process error:', error);
+                }
+            };
+
+            const renderLogin = () => (
+                <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-blue-300">
+                    <div className="bg-white p-8 rounded-xl shadow-2xl w-96">
+                        <h2 className="text-3xl font-bold mb-6 text-center text-blue-600">Amazon Rank</h2>
+                        {error && (
+                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                                {error}
+                            </div>
+                        )}
+                        <form onSubmit={handleLogin}>
+                            <input 
+                                type="email" 
+                                placeholder="Email" 
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full p-3 mb-4 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required 
+                            />
+                            <input 
+                                type="password" 
+                                placeholder="Password" 
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full p-3 mb-4 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required 
+                            />
+                            <button 
+                                type="submit" 
+                                className="w-full bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition duration-300"
+                            >
+                                Login
+                            </button>
+                            <p 
+                                className="mt-4 text-center text-blue-500 cursor-pointer hover:text-blue-700"
+                                onClick={() => setView('signup')}
+                            >
+                                Need an account? Sign Up
+                            </p>
+                        </form>
+                    </div>
+                </div>
+            );
+
+            const renderSignup = () => (
+                <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-100 to-green-300">
+                    <div className="bg-white p-8 rounded-xl shadow-2xl w-96">
+                        <h2 className="text-3xl font-bold mb-6 text-center text-green-600">Create Account</h2>
+                        {error && (
+                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                                {error}
+                            </div>
+                        )}
+                        <form onSubmit={handleSignup}>
+                            <input 
+                                type="email" 
+                                placeholder="Email" 
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full p-3 mb-4 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                required 
+                            />
+                            <input 
+                                type="password" 
+                                placeholder="Password" 
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full p-3 mb-4 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                required 
+                            />
+                            <button 
+                                type="submit" 
+                                className="w-full bg-green-600 text-white p-3 rounded-md hover:bg-green-700 transition duration-300"
+                            >
+                                Sign Up
+                            </button>
+                            <p 
+                                className="mt-4 text-center text-blue-500 cursor-pointer hover:text-blue-700"
+                                onClick={() => setView('login')}
+                            >
+                                Already have an account? Login
+                            </p>
+                        </form>
+                    </div>
+                </div>
+            );
+
+            const renderDashboard = () => (
+                <div className="container mx-auto p-6 bg-gray-50 min-h-screen">
+                    <div className="bg-white shadow-md rounded-lg p-8 max-w-4xl mx-auto">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-3xl font-bold text-blue-600">Amazon Rank Checker</h2>
+                            <button 
+                                onClick={() => setView('login')}
+                                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                            >
+                                Logout
+                            </button>
+                        </div>
+                        
+                        {error && (
+                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                                {error}
+                            </div>
+                        )}
+
+                        {quota && (
+                            <div className="mb-6 p-4 bg-blue-100 rounded-md">
+                                <div className="flex justify-between">
+                                    <p className="font-semibold">Requests Used:</p>
+                                    <p>{quota.requests_used} / {quota.max_requests}</p>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                                    <div 
+                                        className="bg-blue-600 h-2.5 rounded-full" 
+                                        style={{width: `${(quota.requests_used / quota.max_requests) * 100}%`}}
+                                    ></div>
+                                </div>
+                                <p className="text-sm text-gray-600 mt-2">
+                                    Last Reset: {new Date(quota.last_reset).toLocaleDateString()}
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-6 mb-6">
+                            <div>
+                                <label className="block mb-2 font-semibold text-gray-700">Keywords (one per line)</label>
+                                <textarea 
+                                    value={keywords}
+                                    onChange={(e) => setKeywords(e.target.value)}
+                                    className="w-full p-3 border rounded-md h-40 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="Enter keywords..."
+                                />
+                            </div>
+                            <div>
+                                <label className="block mb-2 font-semibold text-gray-700">ASINs (one per line)</label>
+                                <textarea 
+                                    value={asins}
+                                    onChange={(e) => setAsins(e.target.value)}
+                                    className="w-full p-3 border rounded-md h-40 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="Enter ASINs..."
+                                />
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={processData}
+                            className="w-full bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition duration-300 mb-6"
+                        >
+                            Process Products
+                        </button>
+
+                        {results && (
+                            <div className="mt-6 overflow-x-auto">
+                                <h3 className="text-2xl font-semibold mb-4 text-gray-700">Results</h3>
+                                <table className="w-full border-collapse border rounded-lg overflow-hidden">
+                                    <thead className="bg-blue-100">
+                                        <tr>
+                                            <th className="border p-3 text-left">Keyword</th>
+                                            <th className="border p-3 text-left">ASIN</th>
+                                            <th className="border p-3 text-left">Sponsored Placement</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {results.map((result, index) => (
+                                            <tr key={index} className="hover:bg-blue-50">
+                                                <td className="border p-3">{result.Keyword}</td>
+                                                <td className="border p-3">{result.ASIN}</td>
+                                                <td className="border p-3">{result.Sponsored_Placement}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+
+            return (
+                <div>
+                    {view === 'login' && renderLogin()}
+                    {view === 'signup' && renderSignup()}
+                    {view === 'dashboard' && renderDashboard()}
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
