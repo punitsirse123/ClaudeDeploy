@@ -135,4 +135,4 @@ def run_spider(keywords, asins):
     
     process.start()
     
-    return result
+    return results
